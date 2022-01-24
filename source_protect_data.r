@@ -789,6 +789,10 @@ SOCIODEM$Education.level[SOCIODEM[["X1.5.What.is.the.highest.level.of.education.
 
 tabyl(SOCIODEM$Education.level)
 
+## age - one individual with age 116
+
+tabyl(SOCIODEM$Age)
+
 ### smoking
 
 names(LQ)
@@ -837,7 +841,7 @@ SOCIODEM <- merge(SOCIODEM, LQ, by = c("ResultsID","TecID"), all.x = T, all.y = 
 
 dim(SOCIODEM)
 
-SOCIODEM <- SOCIODEM[c("ResultsID", "TecID","Alcohol.intake.frequency", "Sex", "Education.level", "Smoking")]
+SOCIODEM <- SOCIODEM[c("ResultsID", "TecID","Alcohol.intake.frequency", "Sex", "Education.level", "Smoking","Age")]
 
 saveRDS(SOCIODEM, file = paste0(output_dir, "/", "sociodem_data_derived_protect.rds"))
 

@@ -25,6 +25,7 @@ library(stringi)
 library(janitor)
 library(poLCA)
 library(RNOmni)
+library(lubridate)
 
 ######################### EXTRACT DATA USING UKBKINGS PACKAGE
 
@@ -88,11 +89,16 @@ Bipolar.or.mood.disorder.ICD <- icd10_F_coding[c(186:202, 218:227), ]
 # Mood [affective] disorders depressive type - F32-F33
 Depression.ICD <- icd10_F_coding[c(203:217), ]
 
+# Dementias all - F00-F03
+Dementia.ICD <- icd10_F_coding[c(1:20), ]
+
 write.table(Schizophrenia.or.psychotic.disorder.ICD, file = paste0(output_dir, "/Schizophrenia.or.psychotic.disorder.ICD10_codes_reference_derived.tsv"), row.names = F, sep = "\t")
 
 write.table(Bipolar.or.mood.disorder.ICD, file = paste0(output_dir, "/Bipolar.or.mood.disorder.ICD10_codes_reference_derived.tsv"), row.names = F, sep = "\t")
 
 write.table(Depression.ICD, file = paste0(output_dir, "/Depression.ICD10_codes_reference_derived.tsv"), row.names = F, sep = "\t")
+
+write.table(Dementia.ICD, file = paste0(output_dir, "/Dementia.ICD10_codes_reference_derived.tsv"), row.names = F, sep = "\t")
 
 ### load extracted data
 
@@ -393,54 +399,54 @@ names(MHQ)
 
 MHQ$Education.level <- NA
 
+MHQ$Education.level[MHQ$`6138-0.0` == -7 |
+                      MHQ$`6138-0.1` == -7 |
+                      MHQ$`6138-0.2` == -7 |
+                      MHQ$`6138-0.3` == -7 |
+                      MHQ$`6138-0.4` == -7 |
+                      MHQ$`6138-0.5` == -7] <- "None"
+
+MHQ$Education.level[MHQ$`6138-0.0` == 3 |
+                      MHQ$`6138-0.1` == 3 |
+                      MHQ$`6138-0.2` == 3 |
+                      MHQ$`6138-0.3` == 3 |
+                      MHQ$`6138-0.4` == 3 |
+                      MHQ$`6138-0.5` == 3] <- "O.levels.or.CSE"
+
+MHQ$Education.level[MHQ$`6138-0.0` == 4 |
+                      MHQ$`6138-0.1` == 4 |
+                      MHQ$`6138-0.2` == 4 |
+                      MHQ$`6138-0.3` == 4 |
+                      MHQ$`6138-0.4` == 4 |
+                      MHQ$`6138-0.5` == 4] <- "O.levels.or.CSE"
+
+MHQ$Education.level[MHQ$`6138-0.0` == 2 |
+                      MHQ$`6138-0.1` == 2 |
+                      MHQ$`6138-0.2` == 2 |
+                      MHQ$`6138-0.3` == 2 |
+                      MHQ$`6138-0.4` == 2 |
+                      MHQ$`6138-0.5` == 2] <- "A.levels.NVQ.HNC.or.HND"
+
+MHQ$Education.level[MHQ$`6138-0.0` == 5 |
+                      MHQ$`6138-0.1` == 5 |
+                      MHQ$`6138-0.2` == 5 |
+                      MHQ$`6138-0.3` == 5 |
+                      MHQ$`6138-0.4` == 5 |
+                      MHQ$`6138-0.5` == 5] <- "A.levels.NVQ.HNC.or.HND"
+
+MHQ$Education.level[MHQ$`6138-0.0` == 6 |
+                      MHQ$`6138-0.1` == 6 |
+                      MHQ$`6138-0.2` == 6 |
+                      MHQ$`6138-0.3` == 6 |
+                      MHQ$`6138-0.4` == 6 |
+                      MHQ$`6138-0.5` == 6] <- "A.levels.NVQ.HNC.or.HND"
+
 MHQ$Education.level[MHQ$`6138-0.0` == 1 |
   MHQ$`6138-0.1` == 1 |
   MHQ$`6138-0.2` == 1 |
   MHQ$`6138-0.3` == 1 |
   MHQ$`6138-0.4` == 1 |
   MHQ$`6138-0.5` == 1] <- "University.degree"
-
-MHQ$Education.level[MHQ$`6138-0.0` == 2 |
-  MHQ$`6138-0.1` == 2 |
-  MHQ$`6138-0.2` == 2 |
-  MHQ$`6138-0.3` == 2 |
-  MHQ$`6138-0.4` == 2 |
-  MHQ$`6138-0.5` == 2] <- "A.levels.NVQ.HNC.or.HND"
-
-MHQ$Education.level[MHQ$`6138-0.0` == 3 |
-  MHQ$`6138-0.1` == 3 |
-  MHQ$`6138-0.2` == 3 |
-  MHQ$`6138-0.3` == 3 |
-  MHQ$`6138-0.4` == 3 |
-  MHQ$`6138-0.5` == 3] <- "O.levels.or.CSE"
-
-MHQ$Education.level[MHQ$`6138-0.0` == 4 |
-  MHQ$`6138-0.1` == 4 |
-  MHQ$`6138-0.2` == 4 |
-  MHQ$`6138-0.3` == 4 |
-  MHQ$`6138-0.4` == 4 |
-  MHQ$`6138-0.5` == 4] <- "O.levels.or.CSE"
-
-MHQ$Education.level[MHQ$`6138-0.0` == 5 |
-  MHQ$`6138-0.1` == 5 |
-  MHQ$`6138-0.2` == 5 |
-  MHQ$`6138-0.3` == 5 |
-  MHQ$`6138-0.4` == 5 |
-  MHQ$`6138-0.5` == 5] <- "A.levels.NVQ.HNC.or.HND"
-
-MHQ$Education.level[MHQ$`6138-0.0` == 6 |
-  MHQ$`6138-0.1` == 6 |
-  MHQ$`6138-0.2` == 6 |
-  MHQ$`6138-0.3` == 6 |
-  MHQ$`6138-0.4` == 6 |
-  MHQ$`6138-0.5` == 6] <- "A.levels.NVQ.HNC.or.HND"
-
-MHQ$Education.level[MHQ$`6138-0.0` == -7 |
-  MHQ$`6138-0.1` == -7 |
-  MHQ$`6138-0.2` == -7 |
-  MHQ$`6138-0.3` == -7 |
-  MHQ$`6138-0.4` == -7 |
-  MHQ$`6138-0.5` == -7] <- "None"
 
 tabyl(MHQ$Education.level)
 
@@ -824,6 +830,8 @@ Depression.ICD_df <- fread(paste0(output_dir, "/Depression.ICD10_codes_reference
 
 Bipolar.or.mood.disorder.ICD_df <- fread(paste0(output_dir, "/Bipolar.or.mood.disorder.ICD10_codes_reference_derived.tsv"))
 
+Dementia.ICD_df <- fread(paste0(output_dir, "/Dementia.ICD10_codes_reference_derived.tsv"))
+
 ### pull out IDs with specific ICD10 codes
 
 scz_diag <- diag[diag$diag_icd10 %in% Schizophrenia.or.psychotic.disorder.ICD_df$coding, ]
@@ -835,6 +843,27 @@ NROW(unique(bip_diag$eid))
 dep_diag <- diag[diag$diag_icd10 %in% Depression.ICD_df$coding, ]
 NROW(unique(dep_diag$eid))
 
+dem_diag <- diag[diag$diag_icd10 %in% Dementia.ICD_df$coding, ]
+NROW(unique(dem_diag$eid))
+
+# find dates of first ever dementia code for each individual
+
+dem_dates <- merge(dem_diag,hesin , by=c("eid","ins_index"))
+
+dem_dates$date <- dmy(dem_dates$epistart)
+
+dem_dates %>%
+  group_by(eid) %>%
+slice(1) -> first_dem
+
+# how many individuals have their first dementia diagnosis record after 2018?
+
+NROW(first_dem$eid[first_dem$date>"2018-01-01"])
+
+# as percentage of total dementia diagnoses:
+
+NROW(first_dem$eid[first_dem$date>"2018-01-01"])/NROW(first_dem$eid) * 100
+
 ### tabulate instances of each ICD10 code
 
 instances_scz <- tabyl(scz_diag$diag_icd10)
@@ -842,6 +871,8 @@ instances_scz <- tabyl(scz_diag$diag_icd10)
 instances_dep <- tabyl(dep_diag$diag_icd10)
 
 instances_bip <- tabyl(bip_diag$diag_icd10)
+
+instances_dem <- tabyl(dem_diag$diag_icd10)
 
 ### pull out unique IDs and write to file
 
@@ -857,13 +888,20 @@ icd10_cases_eid$Depression.ICD[which(icd10_cases_eid$eid %in% unique(dep_diag$ei
 icd10_cases_eid$Bipolar.or.mood.disorder.ICD <- "No"
 icd10_cases_eid$Bipolar.or.mood.disorder.ICD[which(icd10_cases_eid$eid %in% unique(bip_diag$eid))] <- "Yes"
 
+icd10_cases_eid$Dementia.ICD <- "No"
+icd10_cases_eid$Dementia.ICD[which(icd10_cases_eid$eid %in% unique(dem_diag$eid))] <- "Yes"
+
 ### check
 
 tabyl(icd10_cases_eid$Bipolar.or.mood.disorder.ICD)
 
+tabyl(icd10_cases_eid$Dementia.ICD)
+
+tabyl(icd10_cases_eid$Depression.ICD)
+
 ### save ICD hesin data in order to merge in to main MHQ dataset at multinomial analysis stage
 
-icd_hesin_vars <- c("eid", "Bipolar.or.mood.disorder.ICD", "Depression.ICD", "Schizophrenia.or.psychotic.disorder.ICD")
+icd_hesin_vars <- c("eid", "Bipolar.or.mood.disorder.ICD", "Depression.ICD", "Schizophrenia.or.psychotic.disorder.ICD", "Dementia.ICD")
 
 saveRDS(icd10_cases_eid[, c(icd_hesin_vars)], file = paste0(output_dir, "/", "ICD_diagnoses_hesin_cleaned_data.rds"))
 

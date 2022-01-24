@@ -22,8 +22,14 @@ analyse_continuous_multinomial <-
 
         datasetlong[["predclass"]] <-
           relevel(as.factor(datasetlong[["predclass"]]), ref = 3)
+        
+        palette_choice4 <- palette_choice_ma
+        
       } else {
         print("This is the main analysis (reference level '1')")
+        
+        palette_choice4 <- palette_choice_ir
+        
       }
 
 
@@ -81,21 +87,18 @@ analyse_continuous_multinomial <-
       weighted_res_df <-
         weighted_res_df[which(weighted_res_df$term != "(Intercept)"), ]
 
-      ### create a 'comparison' column of statistical test for plot labels
-      naive_res_df$comparison <-
-        paste0(
-          levels(datasetlong$predclass)[1],
-          "v",
-          naive_res_df$`y.level`
-        )
-
-      weighted_res_df$comparison <-
-        paste0(
-          levels(datasetlong$predclass)[1],
-          "v",
-          naive_res_df$`y.level`
-        )
-
+      # join names
+      naive_res_df <- left_join(naive_res_df, class_names, by=c("y.level" = "class"))
+      weighted_res_df <- left_join(weighted_res_df, class_names, by=c("y.level" = "class"))
+      
+      refclass <- as.character(class_names$class_abbreviation)[which(class_names$class==levels(datasetwide[["predclass"]])[1])]
+      refclasslong <- as.character(class_names$class_abbreviation)[which(class_names$class==levels(datasetlong[["predclass"]])[1])]
+      
+      ### create a 'comparison' column of statistical test for plot
+      naive_res_df$comparison <- paste0(refclass, " v ", naive_res_df$class_abbreviation)
+      weighted_res_df$comparison <- paste0(refclasslong, " v ", weighted_res_df$class_abbreviation)
+      
+      
       ### remove periods if any exist from names
       naive_res_df$exposure <-
         as.factor(gsub("\\.", " ", as.character(naive_res_df$exposure)))
@@ -117,7 +120,7 @@ analyse_continuous_multinomial <-
         ) +
         geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
         xlab("Class comparisons") +
-        scale_fill_brewer(palette = palette_choice) +
+        scale_colour_manual(values=palette_choice4) +
         ylab(paste0("Risk ratio (per SD increase in ", traitname, ")")) +
         theme_classic() +
         labs(title = paste0(naive_res_df$exposure[1])) +
@@ -163,7 +166,7 @@ analyse_continuous_multinomial <-
         ) +
         geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
         xlab("Class comparisons") +
-        scale_fill_brewer(palette = palette_choice) +
+        scale_colour_manual(values=palette_choice4) +
         ylab(paste0("Risk ratio (per SD increase in ", traitname, ")")) +
         theme_classic() +
         labs(title = paste0(weighted_res_df$exposure[1])) +

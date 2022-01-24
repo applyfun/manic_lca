@@ -48,8 +48,14 @@ analyse_categorical_multinomial <- function(datasetwide,
 
       datasetlong[["predclass"]] <-
         relevel(as.factor(datasetlong[["predclass"]]), ref = 3)
+      
+      palette_choice4 <- palette_choice_ma
+      
     } else {
       print("This is the main analysis (reference level '1')")
+      
+      palette_choice4 <- palette_choice_ir
+      
     }
 
     ### create formula for multinomial regression
@@ -86,16 +92,20 @@ analyse_categorical_multinomial <- function(datasetwide,
     weighted_res_df <- bind_rows(weighted_res)
     weighted_res_df <- weighted_res_df[which(weighted_res_df$term != "(Intercept)"), ]
 
+    # join names
+    naive_res_df <- left_join(naive_res_df, class_names, by = c("y.level" = "class"))
+    weighted_res_df <- left_join(weighted_res_df, class_names, by = c("y.level" = "class"))
+
+    refclass <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(datasetwide[["predclass"]])[1])]
+    refclasslong <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(datasetlong[["predclass"]])[1])]
+
     ### create a 'comparison' column of statistical test for plot
-    
-    naive_res_df$comparison <-
-      paste0(levels(datasetwide[["predclass"]])[1], "v", naive_res_df$`y.level`)
-    
-    weighted_res_df$comparison <-
-      paste0(levels(datasetlong[["predclass"]])[1], "v", weighted_res_df$`y.level`)
-    
+    naive_res_df$comparison <- paste0(refclass, " v ", naive_res_df$class_abbreviation)
+    weighted_res_df$comparison <- paste0(refclasslong, " v ", weighted_res_df$class_abbreviation)
+
+
     ### remove periods if any exist from names
-    
+
     naive_res_df$exposure <- as.factor(gsub("\\.", " ", as.character(naive_res_df$exposure)))
     weighted_res_df$exposure <- as.factor(gsub("\\.", " ", as.character(weighted_res_df$exposure)))
 
@@ -106,9 +116,10 @@ analyse_categorical_multinomial <- function(datasetwide,
 
     print(weighted_res_df)
 
-    write.csv(weighted_res_df, paste0(output_dir,"/","multinomial_",traitname,"_weighted_res_",reference_i,".csv"), 
-              col.names=T, row.names=F, quote = F)
-    
+    write.csv(weighted_res_df, paste0(output_dir, "/", "multinomial_", traitname, "_weighted_res_", reference_i, ".csv"),
+      col.names = T, row.names = F, quote = F
+    )
+
     ### plot multinomial results
 
     gg01 <- ggplot(naive_res_df, aes(comparison, estimate, colour = comparison)) +
@@ -116,9 +127,9 @@ analyse_categorical_multinomial <- function(datasetwide,
       geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
       geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
       xlab("Class comparisons") +
-      ylab("Estimate (RR)") +
       facet_wrap(~exposure) +
-      scale_fill_brewer(palette = palette_choice) +
+      scale_colour_manual(values=palette_choice4) +
+      ylab("Estimate (RR)") +
       theme_classic() +
       theme(
         panel.background = element_rect(fill = "white", colour = "black"),
@@ -144,10 +155,10 @@ analyse_categorical_multinomial <- function(datasetwide,
       geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
       geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
       xlab("Class comparisons") +
-      ylab("Estimate (RR)") +
       facet_wrap(~exposure) +
-      scale_fill_brewer(palette = palette_choice) +
+      scale_colour_manual(values=palette_choice4) +
       theme_classic() +
+      ylab("Estimate (RR)") +
       theme(
         panel.background = element_rect(fill = "white", colour = "black"),
         strip.background = element_rect(fill = "white", colour = "white")
@@ -189,13 +200,19 @@ analyse_categorical_multinomial <- function(datasetwide,
 
     tabulations2 <- bind_rows(tabulations, .id = c("class"))[c("categories", "n", "percent", "class")]
 
+    tabulations2 <- left_join(tabulations2, class_names[, c("class", "class_abbreviation")])
+
+    tabulations2$class <- tabulations2$class_abbreviation
+
+    tabulations2$class_abbreviation <- NULL
+
     tabulations2$`N (percent)` <-
-      paste0(tabulations2$n, " (", round(tabulations2$percent*100, digits = 2), ")")
+      paste0(tabulations2$n, " (", round(tabulations2$percent * 100, digits = 2), ")")
 
     tabulations2$exposure <- as.factor(gsub("\\.", " ", as.character(tabulations2$categories))) # remove periods if any exist
-    
+
     tabulations2$categories <- as.factor(gsub("\\.", " ", as.character(tabulations2$categories))) # remove periods if any exist
-    
+
     ### tabulate number of missing rows (hence individuals with NA for exposure) and subset
     missing <- NROW(datasetwide[[varname]]) - NROW(tabulations2[which(datasetwide[[varname]] != "NA"), ])
     tabulations2 <- tabulations2[which(tabulations2$categories != "NA"), ]
@@ -203,10 +220,10 @@ analyse_categorical_multinomial <- function(datasetwide,
     print(tabulations2)
 
     write.table(tabulations2[c("categories", "n", "percent", "class", "N (percent)")],
-                file = paste0(output_dir, "/", traitname, "_", optimum_classes, "class_tabulations.csv"),
-                row.names = FALSE, quote = FALSE, sep = ","
+      file = paste0(output_dir, "/", traitname, "_", optimum_classes, "class_tabulations.csv"),
+      row.names = FALSE, quote = FALSE, sep = ","
     )
-    
+
     ### plot raw comparisons by most probable class
     png(
       filename = paste0(
@@ -216,16 +233,16 @@ analyse_categorical_multinomial <- function(datasetwide,
       width = 20, height = 13, units = "cm", res = 300
     )
 
-    print(ggplot(tabulations2, aes(class, percent)) +
-      geom_bar(aes(fill = exposure), position = "dodge", stat = "identity", alpha = 0.8) +
+    print(ggplot(tabulations2, aes(exposure, percent)) +
+      geom_bar(aes(fill = class), position = "dodge", stat = "identity", alpha = 0.8) +
       scale_fill_brewer(palette = palette_choice) +
       ylab("Proportion of class") +
-      xlab(paste0("Class (N= ", NROW(datasetwide[which(datasetwide[[varname_levels]] != "NA"), ]), ")")) +
-      labs(fill = gsub("\\.", " ", paste0(varname))) +
+      xlab(paste0("Response (N= ", NROW(datasetwide[which(datasetwide[[varname_levels]] != "NA"), ]), ")")) +
+      labs(fill ="") +
       theme_classic() +
-      geom_text(aes(class,
+      geom_text(aes(exposure,
         y = percent + 0.03,
-        group = exposure,
+        group = class,
         label = format(
           percent,
           nsmall = 0,
@@ -236,7 +253,8 @@ analyse_categorical_multinomial <- function(datasetwide,
       color = "cornflowerblue",
       position = position_dodge(.9),
       hjust = .5
-      ))
+      )+
+        labs(fill = "Class")) 
 
     dev.off()
   }

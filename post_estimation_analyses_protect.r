@@ -40,6 +40,12 @@ scripts_dir <- as.character(paste0(dirs[10, ], "scripts/manic_lca"))
 
 palette_choice <- "Set1"
 
+palette_choice4 <- c(
+  "MA v AR" = "#E41A1C", "MA v EA" = "#377EB8",
+  "MA v IR" = "#984EA3", "MA v FC" = "#4DAF4A", "IR v AR" = "#E41A1C", "IR v EA" = "#377EB8",
+  "IR v MA" = "#FF7F00", "IR v FC" = "#4DAF4A"
+)
+
 ### set up functions for multinomial logistic regressions
 
 source(paste0(scripts_dir, "/function_categorical_multinomial.r"))
@@ -67,6 +73,14 @@ lca <- readRDS(file = paste0(output_dir, "/", "lca_cases_only_main_results_prote
 
 ids <- readRDS(file = paste0(output_dir, "/", "lca_cases_only_analytical_dataset_protect.rds"))
 
+class_names <- data.frame(
+  class = as.character(c(1, 2, 3, 4, 5)),
+  Class = as.character(c("class 1", "class 2", "class 3", "class 4", "class 5")),
+  class_name = as.character(c("Inactive restless", "Extensively affected", "Minimally affected", "Focused creative", "Active restless")),
+  class_abbreviation = as.character(c("IR", "EA", "MA", "FC", "AR"))
+)
+
+class_names$predclass <- class_names$class
 
 ################################################################################
 ######## TABULATE NUMBERS OF IRRITABLE AND MANIC IN EACH CLASS WITH % ##########
@@ -85,9 +99,9 @@ posterior_probs[["predclass"]] <- recode(posterior_probs[["predclass"]], `1` = 2
 
 ### also manually rename probabilities to match new class numberings
 
-names(posterior_probs) <- c("V2","V3","V4","V1","V5","predclass")
+names(posterior_probs) <- c("V2", "V3", "V4", "V1", "V5", "predclass")
 
-posterior_probs <- posterior_probs[,c("V1","V2","V3","V4","V5","predclass")]
+posterior_probs <- posterior_probs[, c("V1", "V2", "V3", "V4", "V5", "predclass")]
 
 ### bind phenotypes and LCA results
 
@@ -125,12 +139,18 @@ for (i in 1:optimum_classes) {
 }
 
 tb2 <- bind_rows(tb, .id = c("class"))
+
+tb2 <- left_join(tb2, class_names[, c("class", "class_abbreviation")])
+
+tb2$class <- tb2$class_abbreviation
+
+tb2$class_abbreviation <- NULL
+
 tb2 <- tb2[c("categories", "n", "percent", "class")]
+
 tb2$`N (percent)` <-
-  paste0(tb2$n, " (", round(tb2$percent*100, digits = 2), ")")
+  paste0(tb2$n, " (", round(tb2$percent * 100, digits = 2), ")")
 tb2$Response <- as.factor(as.character(gsub("\\.", " ", as.character(tb2$categories)))) # remove periods if any exist
-
-
 
 ### plot numbers/percentages of irritable, manic or manic AND irritable in each class
 
@@ -139,16 +159,16 @@ png(
   width = 20, height = 13, units = "cm", res = 300
 )
 
-ggplot(tb2, aes(class, percent)) +
-  geom_bar(aes(fill = Response), position = "dodge", stat = "identity", alpha = 0.8) +
+ggplot(tb2, aes(Response, percent)) +
+  geom_bar(aes(fill = class), position = "dodge", stat = "identity", alpha = 0.8) +
   scale_fill_brewer(palette = palette_choice) +
   ylab("Proportion of class") +
   theme_classic() +
   geom_text(
     aes(
-      class,
+      Response,
       y = percent + 0.03,
-      group = Response,
+      group = class,
       label = format(
         percent,
         nsmall = 0,
@@ -159,7 +179,8 @@ ggplot(tb2, aes(class, percent)) +
     color = "cornflowerblue",
     position = position_dodge(.9),
     hjust = .5
-  )
+  ) +
+  labs(fill = "Class")
 
 dev.off()
 
@@ -168,11 +189,12 @@ png(
   width = 20, height = 13, units = "cm", res = 300
 )
 
-ggplot(tb2, aes(class, n)) +
-  geom_bar(aes(fill = Response), position = "dodge", stat = "identity", alpha = 0.8) +
+ggplot(tb2, aes(Response, n)) +
+  geom_bar(aes(fill = class), position = "dodge", stat = "identity", alpha = 0.8) +
   scale_fill_brewer(palette = palette_choice) +
   ylab("Number of individuals in class") +
-  theme_classic()
+  theme_classic() +
+  labs(fill = "Class")
 
 
 dev.off()
@@ -283,16 +305,23 @@ for (reference_i in c("main", "relevel")) {
   duration_weighted_res_df <- bind_rows(duration_weighted_res)
   duration_weighted_res_df <- duration_weighted_res_df[which(duration_weighted_res_df$term != "(Intercept)"), ]
 
+  # join names
+  duration_naive_res_df <- left_join(duration_naive_res_df, class_names, by = c("y.level" = "class"))
+  duration_weighted_res_df <- left_join(duration_weighted_res_df, class_names, by = c("y.level" = "class"))
+
+  refclass <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(posterior_probs$predclass)[1])]
+  refclasslong <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(posterior_long$predclass)[1])]
+
   ### create a 'comparison' column of statistical test for plot
-  duration_naive_res_df$comparison <- paste0(levels(posterior_probs[["predclass"]])[1], "v", duration_naive_res_df$`y.level`)
-  duration_weighted_res_df$comparison <- paste0(levels(posterior_long[["predclass"]])[1], "v", duration_naive_res_df$`y.level`)
+  duration_naive_res_df$comparison <- paste0(refclass, " v ", duration_naive_res_df$class_abbreviation)
+  duration_weighted_res_df$comparison <- paste0(refclasslong, " v ", duration_naive_res_df$class_abbreviation)
 
   ### remove periods if any exist from names
   duration_naive_res_df$exposure <- as.factor(gsub("\\.", " ", as.character(duration_naive_res_df$exposure)))
   duration_weighted_res_df$exposure <- as.factor(gsub("\\.", " ", as.character(duration_weighted_res_df$exposure)))
- 
-  write.csv(duration_weighted_res_df, paste0(output_dir,"/","multinomial_duration_weighted_res_",reference_i,"_protect.csv"), col.names=T, row.names=F, quote = F)
-  
+
+  write.csv(duration_weighted_res_df, paste0(output_dir, "/", "multinomial_duration_weighted_res_", reference_i, "_protect.csv"), col.names = T, row.names = F, quote = F)
+
   ### plot multinomial results
   png(
     filename = paste0(output_dir, "/", "multinomial_naive_duration_", reference_i, "_", optimum_classes, "class_protect_scatterplot.png"),
@@ -304,7 +333,7 @@ for (reference_i in c("main", "relevel")) {
     geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
     geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
     xlab("Class comparisons") +
-    scale_fill_brewer(palette = palette_choice) +
+    scale_colour_manual(values = palette_choice4) +
     ylab("Estimate (RR)") +
     theme_classic() +
     facet_wrap(~exposure) +
@@ -327,7 +356,7 @@ for (reference_i in c("main", "relevel")) {
     geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
     geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
     xlab("Class comparisons") +
-    scale_fill_brewer(palette = palette_choice) +
+    scale_colour_manual(values = palette_choice4) +
     ylab("Estimate (RR)") +
     theme_classic() +
     facet_wrap(~exposure) +
@@ -355,35 +384,43 @@ for (reference_i in c("main", "relevel")) {
   }
 
   tb_duration2 <- bind_rows(tb_duration, .id = c("class"))
+
+  tb_duration2 <- left_join(tb_duration2, class_names[, c("class", "class_abbreviation")])
+
+  tb_duration2$class <- tb_duration2$class_abbreviation
+
+  tb_duration2$class_abbreviation <- NULL
+
   tb_duration2 <- tb_duration2[c("categories", "n", "percent", "class")]
+
   tb_duration2$`N (percent)` <-
-    paste0(tb_duration2$n, " (", round(tb_duration2$percent*100, digits = 2), ")")
+    paste0(tb_duration2$n, " (", round(tb_duration2$percent * 100, digits = 3), ")")
   tb_duration2$Duration <- as.factor(gsub("\\.", " ", as.character(tb_duration2$categories))) # remove periods if any exist
 
   ### tabulate number of missing rows (hence individuals with NA for duration) and subset
   missing_duration <- NROW(posterior_probs$Duration.mania.or.irritability) - NROW(tb_duration2[which(posterior_probs$Duration.mania.or.irritability != "NA"), ])
-  tb_duration2 <- tb_duration2[which(tb_duration2$categories != "NA"), ]
+  tb_duration2 <- tb_duration2[which(tb_duration2$categories != "Don't know NA"), ]
 
   write.table(tb_duration2[c("categories", "n", "percent", "class", "N (percent)")],
-              file = paste0(output_dir, "/",  "duration_protect", optimum_classes, "class_tabulations.csv"),
-              row.names = FALSE, quote = FALSE, sep = ","
+    file = paste0(output_dir, "/", "duration_protect", optimum_classes, "class_tabulations.csv"),
+    row.names = FALSE, quote = FALSE, sep = ","
   )
-  
+
   ### plot raw comparisons by most probable class
   png(
     filename = paste0(output_dir, "/", "percent_duration_", optimum_classes, "class_protect_barplot.png"),
     width = 20, height = 13, units = "cm", res = 300
   )
 
-  print(ggplot(tb_duration2, aes(class, percent)) +
-    geom_bar(aes(fill = Duration), position = "dodge", stat = "identity", alpha = 0.8) +
+  print(ggplot(tb_duration2, aes(Duration, percent)) +
+    geom_bar(aes(fill = class), position = "dodge", stat = "identity", alpha = 0.8) +
     scale_fill_brewer(palette = palette_choice) +
     ylab("Proportion of class") +
     theme_classic() +
-    xlab(paste0("Class (N= ", NROW(posterior_probs[which(posterior_probs[["Duration.mania.or.irritability"]] != "NA"), ]), ")")) +
-    geom_text(aes(class,
+    xlab(paste0("Response (N= ", NROW(posterior_probs[which(posterior_probs[["Duration.mania.or.irritability"]] != "NA"), ]), ")")) +
+    geom_text(aes(Duration,
       y = percent + 0.03,
-      group = Duration,
+      group = class,
       label = format(
         percent,
         nsmall = 0,
@@ -394,7 +431,8 @@ for (reference_i in c("main", "relevel")) {
     color = "cornflowerblue",
     position = position_dodge(.9),
     hjust = .5
-    ))
+    )) +
+    labs(fill = "Class") 
 
   dev.off()
 }
@@ -416,7 +454,8 @@ analyse_binary_multinomial(
   datasetwide = posterior_probs,
   datasetlong = posterior_long,
   varname = "Problematic.mania.or.irritability",
-  traitname = "disruptiveness_protect"
+  traitname = "disruptiveness_protect",
+  missingnessplot = T
 )
 
 ####################################################################################
@@ -429,6 +468,149 @@ sociodemographic_vars <- c(
   "Smoking", "Alcohol.intake.frequency"
 )
 
+sociodemographic_vars_auxillary <- c("Age")
+
+mhq <- readRDS(file = paste0(output_dir, "/", "manic_data_derived_protect_mhq.rds"))
+
+mhq_IDS <- mhq$ResultsID[!is.na(mhq$Submitted)]
+
+### create subset to make comparions between LCA subset and whole MHQ
+
+posterior_probs_sociodem_description <- (posterior_probs[, c(
+  "TecID",
+  sociodemographic_vars, sociodemographic_vars_auxillary, "predclass"
+)])
+
+tabulated_sociodem <- list()
+
+tabulated_sociodem[["continuous"]] <- bind_rows(
+  c(
+    summary(posterior_probs_sociodem_description$Age),
+    sd(na.omit(posterior_probs_sociodem_description$Age))
+  )
+)
+
+tabulated_sociodem[["categorical"]] <- bind_rows(
+  tabyl(posterior_probs_sociodem_description$Sex),
+  tabyl(posterior_probs_sociodem_description$Education.level),
+  tabyl(posterior_probs_sociodem_description$Alcohol.intake.frequency),
+  tabyl(posterior_probs_sociodem_description$Smoking)
+)
+
+### full MHQ for description
+
+all_mhq_description <- (sociodem[, c(
+  "TecID","ResultsID",
+  sociodemographic_vars, sociodemographic_vars_auxillary
+)])
+
+### subset to MHQ completers only - new section
+
+all_mhq_description <- all_mhq_description[all_mhq_description$ResultsID %in% mhq_IDS,]
+
+tabulated_sociodem_mhq <- list()
+
+tabulated_sociodem_mhq[["continuous"]] <- bind_rows(
+  c(
+    summary(all_mhq_description$Age),
+    sd(na.omit(all_mhq_description$Age))
+  )
+)
+
+tabulated_sociodem_mhq[["categorical"]] <- bind_rows(
+  tabyl(all_mhq_description$Sex),
+  tabyl(all_mhq_description$Education.level),
+  tabyl(all_mhq_description$Alcohol.intake.frequency),
+  tabyl(all_mhq_description$Smoking)
+)
+
+### form descriptive stats in to table
+
+tabulated_sociodem_mhq[["continuous"]][is.na(tabulated_sociodem_mhq[["continuous"]])] <- " "
+
+names(tabulated_sociodem_mhq[["continuous"]]) <- c(names(tabulated_sociodem_mhq[["continuous"]][1:7]), "sd1")
+
+tabulated_sociodem_mhq[["continuous"]]$sd <- as.numeric(paste0(
+  tabulated_sociodem_mhq[["continuous"]]["sd1"]$sd1
+))
+
+tabulated_sociodem_mhq[["continuous"]] <- tabulated_sociodem_mhq[["continuous"]][, c("Mean", "NA's", "sd")]
+
+tabulated_sociodem_mhq[["continuous"]]$Mean <- paste0(round(tabulated_sociodem_mhq[["continuous"]]$Mean, digits = 1), "(", round(tabulated_sociodem_mhq[["continuous"]]$sd, digits = 1), ")")
+
+#
+
+tabulated_sociodem[["continuous"]][is.na(tabulated_sociodem[["continuous"]])] <- " "
+
+names(tabulated_sociodem[["continuous"]]) <- c(names(tabulated_sociodem[["continuous"]][1:7]), "sd1")
+
+tabulated_sociodem[["continuous"]]$sd <- as.numeric(paste0(
+  (tabulated_sociodem[["continuous"]]["sd1"]$sd1)
+))
+
+tabulated_sociodem[["continuous"]] <- tabulated_sociodem[["continuous"]][, c("Mean", "NA's", "sd")]
+
+tabulated_sociodem[["continuous"]]$Mean <- paste0(round(tabulated_sociodem[["continuous"]]$Mean, digits = 1), "(", round(tabulated_sociodem[["continuous"]]$sd, digits = 1), ")")
+
+write.table(tabulated_sociodem_mhq[["continuous"]], file = paste0(output_dir, "/summaries_table1_mhq_protect_subset.tab"), sep = "\t", quote = F, row.names = F)
+
+write.table(tabulated_sociodem[["continuous"]], file = paste0(output_dir, "/summaries_table1_lca_protect_subset.tab"), sep = "\t", quote = F, row.names = F)
+
+### categorical
+
+tabulated_sociodem_cat <- setDF(tabulated_sociodem[["categorical"]])
+
+tabulated_sociodem_cat$Measure <- tabulated_sociodem_cat$`posterior_probs_sociodem_description$Sex`
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Education.level"]]))] <- tabulated_sociodem_cat[["posterior_probs_sociodem_description$Education.level"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Education.level"]]))]
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Smoking"]]))] <- tabulated_sociodem_cat[["posterior_probs_sociodem_description$Smoking"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Smoking"]]))]
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Alcohol.intake.frequency"]]))] <- tabulated_sociodem_cat[["posterior_probs_sociodem_description$Alcohol.intake.frequency"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["posterior_probs_sociodem_description$Alcohol.intake.frequency"]]))]
+
+tabulated_sociodem_tidy <- tabulated_sociodem_cat[, c("Measure", "n", "percent", "valid_percent")]
+
+tabulated_sociodem_tidy$Measure <- as.factor(gsub("\\.", " ", as.character(tabulated_sociodem_tidy$Measure)))
+
+tabulated_sociodem_tidy$percent <- signif((tabulated_sociodem_tidy$percent * 100), digits = 2)
+
+### mhq
+
+tabulated_sociodem_cat <- setDF(tabulated_sociodem_mhq[["categorical"]])
+
+tabulated_sociodem_cat$Measure <- tabulated_sociodem_cat$`all_mhq_description$Sex`
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Education.level"]]))] <- tabulated_sociodem_cat[["all_mhq_description$Education.level"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Education.level"]]))]
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Smoking"]]))] <- tabulated_sociodem_cat[["all_mhq_description$Smoking"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Smoking"]]))]
+
+tabulated_sociodem_cat$Measure[which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Alcohol.intake.frequency"]]))] <- tabulated_sociodem_cat[["all_mhq_description$Alcohol.intake.frequency"]][which(is.na(tabulated_sociodem_cat$Measure) &
+  !is.na(tabulated_sociodem_cat[["all_mhq_description$Alcohol.intake.frequency"]]))]
+
+tabulated_sociodem_tidy_mhq <- tabulated_sociodem_cat[, c("Measure", "n", "percent", "valid_percent")]
+
+tabulated_sociodem_tidy_mhq$Measure <- as.factor(gsub("\\.", " ", as.character(tabulated_sociodem_tidy_mhq$Measure)))
+
+tabulated_sociodem_tidy_mhq$percent <- signif((tabulated_sociodem_tidy_mhq$percent * 100), digits = 2)
+
+### write
+
+write.table(tabulated_sociodem_tidy_mhq, file = paste0(output_dir, "/tabulations_table1_mhq_protect_subset.tab"), sep = "\t", quote = F, row.names = F)
+
+write.table(tabulated_sociodem_tidy, file = paste0(output_dir, "/tabulations_table1_lca_protect_subset.tab"), sep = "\t", quote = F, row.names = F)
+
+###
 
 posterior_probs_sociodem <- na.omit(posterior_probs[, c(
   "TecID", "ResultsID",
@@ -726,12 +908,16 @@ for (reference_i in c("main", "relevel")) {
   prs_weighted_res_df <-
     prs_weighted_res_df[which(prs_weighted_res_df$term != "(Intercept)"), ]
 
-  ### create a 'comparison' column of statistical test for plot labels
-  prs_naive_res_df$comparison <-
-    paste0(levels(posterior_prs_long$predclass)[1], "v", prs_naive_res_df$`y.level`)
+  # join names
+  prs_naive_res_df <- left_join(prs_naive_res_df, class_names, by = c("y.level" = "class"))
+  prs_weighted_res_df <- left_join(prs_weighted_res_df, class_names, by = c("y.level" = "class"))
 
-  prs_weighted_res_df$comparison <-
-    paste0(levels(posterior_prs_long$predclass)[1], "v", prs_weighted_res_df$`y.level`)
+  refclass <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(posterior_probs_prs[["predclass"]])[1])]
+  refclasslong <- as.character(class_names$class_abbreviation)[which(class_names$class == levels(posterior_prs_long[["predclass"]])[1])]
+
+  ### create a 'comparison' column of statistical test for plot
+  prs_naive_res_df$comparison <- paste0(refclass, " v ", prs_naive_res_df$class_abbreviation)
+  prs_weighted_res_df$comparison <- paste0(refclasslong, " v ", prs_weighted_res_df$class_abbreviation)
 
   print(prs_weighted_res_df)
 
@@ -742,8 +928,8 @@ for (reference_i in c("main", "relevel")) {
   prs_weighted_res_df$exposure <-
     as.factor(gsub("\\.", " ", as.character(prs_weighted_res_df$exposure)))
 
-  write.csv(prs_weighted_res_df, paste0(output_dir,"/","multinomial_prs_weighted_res_",reference_i,"_protect.csv"), col.names=T, row.names=F, quote = F)
-  
+  write.csv(prs_weighted_res_df, paste0(output_dir, "/", "multinomial_prs_weighted_res_", reference_i, "_protect.csv"), col.names = T, row.names = F, quote = F)
+
   ### plot multinomial results
   png(
     filename = paste0(output_dir, "/", "multinomial_naive_prs_", reference_i, "_", optimum_classes, "class_protect_scatterplot.png"),
@@ -755,7 +941,7 @@ for (reference_i in c("main", "relevel")) {
     geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
     geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
     xlab("Class comparisons") +
-    scale_fill_brewer(palette = palette_choice) +
+    scale_colour_manual(values = palette_choice4) +
     ylab("Risk ratio (per SD increase in PRS)") +
     theme_classic() +
     facet_wrap(~exposure) +
@@ -779,7 +965,7 @@ for (reference_i in c("main", "relevel")) {
     geom_hline(yintercept = 1, color = "coral", alpha = 0.4) +
     geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
     xlab("Class comparisons") +
-    scale_fill_brewer(palette = palette_choice) +
+    scale_colour_manual(values = palette_choice4) +
     ylab("Risk ratio (per SD increase in PRS)") +
     theme_classic() +
     facet_wrap(~exposure) +
@@ -897,13 +1083,13 @@ Self.reported.Depression_res <- analyse_binary_multinomial(
   traitname = "depression_protect"
 )
 
-posterior_probs$Self.reported.GAD.and.others <- factor(
+posterior_probs$Self.reported.GAD <- factor(
   posterior_probs$Self.reported.GAD.and.others,
   levels = sort(unique(posterior_probs$Self.reported.GAD.and.others)),
   labels = c("No", "Yes")
 )
 
-posterior_long$Self.reported.GAD.and.others <- factor(
+posterior_long$Self.reported.GAD <- factor(
   posterior_long$Self.reported.GAD.and.others,
   levels = sort(unique(posterior_long$Self.reported.GAD.and.others)),
   labels = c("No", "Yes")
@@ -912,6 +1098,7 @@ posterior_long$Self.reported.GAD.and.others <- factor(
 Self.reported.GAD.and.others_res <- analyse_binary_multinomial(
   datasetwide = posterior_probs,
   datasetlong = posterior_long,
-  varname = "Self.reported.GAD.and.others",
+  varname = "Self.reported.GAD",
   traitname = "gad_protect"
 )
+

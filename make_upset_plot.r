@@ -1,9 +1,8 @@
-
-
-
 ### Make plots of self-reported diagnoses by class membership
 ### Upset plot and donut chart
 ### 31/02/21
+
+### Run this script interactively in R on the cluster
 
 library(ggplot2)
 library(ComplexUpset)
@@ -13,11 +12,22 @@ library(grid)
 library(gridExtra)
 library(png)
 library(cowplot)
+library(devtools)
 
-output_dir <- "~/brc_scratch/output/manic_lca"
+dirs <- read.table("~/brc_scratch/scripts/paths.txt")
 
+output_dir <- as.character(paste0(dirs[8, ], "output/manic_lca"))
 
-######################## EXAMPLE DATA #######################
+class_names <- data.frame(
+  class = as.character(c(1, 2, 3, 4, 5)),
+  Class = as.character(c("class 1", "class 2", "class 3", "class 4", "class 5")),
+  class_name = as.character(c("Inactive restless", "Extensively affected", "Minimally affected", "Focused creative", "Active restless")),
+  class_abbreviation = as.character(c("IR", "EA", "MA", "FC", "AR"))
+)
+
+class_names$predclass <- class_names$class
+
+######################## EXAMPLE DATA #############################################
 
 # movies <- as.data.frame(ggplot2movies::movies)
 # genres <- colnames(movies)[18:24]
@@ -46,12 +56,17 @@ output_dir <- "~/brc_scratch/output/manic_lca"
 
 # dev.off()
 
-
-###
+####################################################################################
 
 working_df <- readRDS(paste0(output_dir, "/working_df_diagnoses_for_plots_tmp.rds"))
 
-names(working_df)[names(working_df) == "predclass"] <- "Classes"
+names(working_df) <- gsub("GAD and others", "GAD", names(working_df),"GAD and others")
+
+working_df <- left_join(working_df,class_names, by="predclass")
+
+names(working_df)[names(working_df) == "class_abbreviation"] <- "Classes"
+
+#names(working_df)[names(working_df) == "predclass"] <- "Classes"
 
 disorders_ls <- names(working_df[1:6])
 
@@ -67,8 +82,8 @@ working_df_zeros <- working_df[which(rowSums(working_df_indx[, -1]) == 0), ]
 
 upset_basic <- upset(working_df_cc, disorders_ls,
   base_annotations = list("Intersection size" = intersection_size(counts = F, mapping = aes(fill = Classes)) + scale_fill_manual(values = c(
-    "1" = "#E41A1C", "2" = "#377EB8",
-    "4" = "#984EA3", "5" = "#FF7F00", "3" = "#4DAF4A"
+    "AR" = "#E41A1C", "EA" = "#377EB8",
+    "IR" = "#984EA3", "MA" = "#FF7F00", "FC" = "#4DAF4A"
   ))),
   width_ratio = 0.2, name = "Group (diagnosis combination)"
 )
@@ -87,16 +102,17 @@ dev.off()
 ### more complex upset plot
 
 rating_scale <- scale_fill_manual(values = c(
-  "1" = "#E41A1C", "2" = "#377EB8",
-  "4" = "#984EA3", "5" = "#FF7F00", "3" = "#4DAF4A"
+  "AR" = "#E41A1C", "EA" = "#377EB8",
+  "IR" = "#984EA3", "MA" = "#FF7F00", "FC" = "#4DAF4A"
 ))
 
 show_hide_scale <- scale_color_manual(values = c("show" = "black", "hide" = "transparent"), guide = FALSE)
 
 upset3 <- upset(
-  working_df_cc, disorders_ls, wrap=T ,
+  working_df_cc, disorders_ls,
+  wrap = T,
   set_sizes = (upset_set_size(position = "right")), name = "Group (diagnosis combination)",
-  width_ratio = 0.15, min_size = 2, base_annotations = list("Intersection size" = intersection_size(
+  width_ratio = 0.15, min_size = 20, base_annotations = list("Intersection size" = intersection_size(
     text = list(
       vjust = -0.65,
       hjust = 0.3,
@@ -124,7 +140,7 @@ upset3 <- upset(
 )
 
 bitmap(
-  file = paste0(output_dir, "/", "upset_plot_ukb_complex.png"),
+  file = paste0(output_dir, "/", "upset_plot20_ukb_complex.png"),
   width = 32, height = 14, type = "png16m", units = "cm", res = 300
 )
 
@@ -151,8 +167,8 @@ donut1 <- ggplot(count.data, aes(x = 2, y = Percent, fill = Classes)) +
   coord_polar(theta = "y", start = 0) +
   geom_text(x = 3.0, aes(y = lab.ypos, label = lab), size = 5, color = "grey10") +
   scale_fill_manual(values = c(
-    "1" = "#E41A1C", "2" = "#377EB8",
-    "4" = "#984EA3", "5" = "#FF7F00", "3" = "#4DAF4A"
+    "AR" = "#E41A1C", "EA" = "#377EB8",
+    "IR" = "#984EA3", "MA" = "#FF7F00", "FC" = "#4DAF4A"
   )) +
   theme_void() +
   xlim(0.1, 2.9) +
@@ -173,19 +189,21 @@ dev.off()
 
 png1_dest <- paste0(output_dir, "/donut_chart_no_diagnoses_ukb.png")
 
-png2_dest <- paste0(output_dir, "/upset_plot_ukb_complex.png")
+png2_dest <- paste0(output_dir, "/upset_plot20_ukb_complex.png")
 
 img2 <- grid::rasterGrob(as.raster(readPNG(png2_dest)),
-                         interpolate = FALSE)
+  interpolate = FALSE
+)
 img1 <- grid::rasterGrob(as.raster(readPNG(png1_dest)),
-                         interpolate = FALSE)
+  interpolate = FALSE
+)
 
 bitmap(
   file = paste0(output_dir, "/", "combined_upset_donut_plot_ukb.png"),
   width = 30, height = 10, type = "png16m", units = "cm", res = 300
 )
 
-	print(plot_grid(img1, img2, labels = c("A", "B"), ncol = 2, greedy = F, label_size = 16, hjust = -1, scale = c(0.8, 1)))
+print(plot_grid(img1, img2, labels = c("A", "B"), ncol = 2, greedy = F, label_size = 16, hjust = -1, scale = c(0.8, 1)))
 
 dev.off()
 
