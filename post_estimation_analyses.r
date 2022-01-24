@@ -109,6 +109,20 @@ posterior_probs <- as.data.frame(lca[[optimum_model_in_res]]$posterior)
 
 posterior_probs$predclass <- (lca[[optimum_model_in_res]]$predclass)
 
+# write to tidy file for UKB returns
+
+posterior_probs_clean <- posterior_probs
+
+names(posterior_probs_clean) <- c("Class_1_probability","Class_2_probability","Class_3_probability","Class_4_probability","Class_5_probability","Most_likely_class")
+
+posterior_probs_clean <- cbind(posterior_probs_clean, ids)
+
+posterior_probs_clean <- posterior_probs_clean[,c("eid","Class_1_probability","Class_2_probability","Class_3_probability","Class_4_probability","Class_5_probability","Most_likely_class")]
+
+write.csv(posterior_probs_clean, file=paste0(output_dir,"/LCA_classes_with_posterior_probabilities.csv"))
+
+# bind with phenos
+
 posterior_probs <- cbind(posterior_probs, ids)
 
 tabyl(posterior_probs$Ever.manic.or.excitable)
